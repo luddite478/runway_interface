@@ -1,0 +1,7 @@
+input/*
+output/*
+input_frames/*
+processed_frames/*
+ffmpeg_stderr.log
+node_modules
+
