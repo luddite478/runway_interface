@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const sync_request = require('sync-request')
-const spawn = require('child_process').spawn
+const { spawn } = require('child_process')
 
 const args = process.argv
 let fps = 25
@@ -27,6 +27,12 @@ const processed_frames_dir = path.join(__dirname, 'processed_frames')
 const output_dir = path.join(__dirname, 'output')
 const ffmpeg_stderr_path = path.join(__dirname, `ffmpeg_stderr.log`)
 
+function create_dir(dir) {
+	if (!fs.existsSync(dir)){
+    fs.mkdirSync(dir)
+	}	
+}
+
 function base64_encode(file) {
     const bitmap = fs.readFileSync(file)
     return new Buffer(bitmap).toString('base64')
@@ -50,7 +56,6 @@ function clear_file(file_path) {
 	fs.truncate('/path/to/file', 0, ()=>{})
 }
 
-
 function create_requests_to_model(model_name, img_files, model_args) {
 
 	return img_files.map((img_file) => { 
@@ -62,6 +67,7 @@ function create_requests_to_model(model_name, img_files, model_args) {
 		if (model_name === 'style_transfer') {
 			return  [
 				filename,
+				'jpeg', // output ext
 				{
 					contentImage: base64_img 
 				}
@@ -70,9 +76,19 @@ function create_requests_to_model(model_name, img_files, model_args) {
 		} else if (model_name === 'munit') {
 			return [
 				filename,
+				'png', // output ext
 				{
 					image: base64_img,
 					style: model_args.length > 0 ? parseInt(model_args[0],10) : 1
+				}
+			]
+
+		} else if (model_name === 'anime') {
+			return [
+				filename,
+				'png', // output ext
+				{
+					image: base64_img
 				}
 			]
 		}
@@ -83,6 +99,8 @@ function create_requests_to_model(model_name, img_files, model_args) {
 function assemble_video_from_frames(fps) {
 
 	return new Promise((resolve, reject) => {
+		const first_image = fs.readdirSync(input_frames_dir)[0]
+		const image_ext = first_image.split('.').pop()
 
 		const cmd = 'ffmpeg'
 		const args = [
@@ -92,7 +110,7 @@ function assemble_video_from_frames(fps) {
 		  '-pattern_type', 'sequence',
 		  '-start_number', '1',
 		  '-r', fps, 
-		  '-i', path.join(processed_frames_dir, 'image-%07d.jpeg'),
+		  '-i', path.join(processed_frames_dir, 'image-%07d.' + image_ext),
 		  path.join(output_dir, 'output.mp4')
 		]
 
@@ -125,19 +143,23 @@ function process_frames() {
 	return new Promise((resolve, reject) => {
 
 		const img_files = fs.readdirSync(input_frames_dir)
-
 		const requests_to_model = create_requests_to_model(model_name, img_files, model_args)
 
 		requests_to_model.forEach((req, i) =>  {
-			
-			const filename = req[0]
-			const request_obj = req[1]
-	
+
+			const [ filename, output_ext, request_obj ] = req
+			const processed_frame_path = path.join(processed_frames_dir, filename + '.' + output_ext)
+
+			// Check if file already exists
+		  if (fs.existsSync(processed_frame_path)) {
+		    return
+		  }
+
 			console.log(`Processing frame ` + (i+1) + '/' + requests_to_model.length)
 
 			const res = sync_request('POST', 'http://localhost:8000/query', {
 				headers: {
-					Accept: 'application/json',
+					'Accept': 'application/json',
 					'Content-Type': 'application/json',
 				},
 				json: request_obj
@@ -149,11 +171,10 @@ function process_frames() {
 
 			const base64Data = body[res_keys[0]].split(',').pop()
 
-			const processed_frame_path = path.join(processed_frames_dir, filename + '.jpeg')
-
 			fs.writeFileSync(processed_frame_path, base64Data, 'base64')
-
 		})
+			// img_files.foeEach(f => )
+		  // fs.statSync(processed_frame_path)
 
   		resolve()
 	})     
@@ -162,6 +183,7 @@ function process_frames() {
 function input_video_to_frames() {
 
 	return new Promise((resolve, reject) => {
+		console.log('Video segmentation start')
 
 		const input_video = fs.readdirSync(input_dir)[0]
 
@@ -186,13 +208,19 @@ function input_video_to_frames() {
       	})
 
 		proc.on('close', () => {
-			console.log('Video segmentation ended, going to process')
+			console.log('Video segmentation end, going to process')
 			resolve()      
 		})
 	}) 
 }
 
+
+
+// Create dirs if not exist
+[input_dir, input_frames_dir, processed_frames_dir, output_dir].forEach(dir => create_dir(dir))
+// Clear old log
 clear_file(ffmpeg_stderr_path)
+// Process file
 input_video_to_frames(fps)
 	.then(process_frames)
 	.then(() => assemble_video_from_frames(fps))
