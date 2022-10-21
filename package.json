@@ -1,0 +1,22 @@
+{
+  "name": "runway_interface",
+  "version": "1.0.0",
+  "description": "RunwayML interface primary for style transfer models",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luddite478/runway_interface.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/luddite478/runway_interface/issues"
+  },
+  "homepage": "https://github.com/luddite478/runway_interface#readme",
+  "dependencies": {
+    "sync-request": "^6.1.0"
+  }
+}

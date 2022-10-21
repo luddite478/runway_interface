@@ -91,6 +91,15 @@ function create_requests_to_model(model_name, img_files, model_args) {
 					image: base64_img
 				}
 			]
+		} else if (model_name === 'colorize') {  // DeOldify model
+			return [
+				filename,
+				'jpeg', // output ext
+				{
+					image: base64_img,
+					render_factor: 35
+				}
+			]
 		}
 	
 	})
