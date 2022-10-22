@@ -147,23 +147,47 @@ function assemble_video_from_frames(fps) {
 	})
 }
 
+function is_processed (frame_path) {
+	const { size } = fs.statSync(frame_path)
+	return size > 10000 // file 10kb+ is processed
+}
+
+function get_avg_frame_size(frames) {
+	let total_size_sum = 0
+	frames.forEach((f) => {
+		if (fs.existsSync(f)){
+     		const { size } = fs.statSync(f)
+	    	total_size_sum += size
+        }
+	})
+	return total_size_sum/frames.length
+} 
+
+
+function get_full_paths_of_files_in_dir(dir) {
+	return fs.readdirSync(dir).map(file => {
+		return path.join(dir, file)
+   })
+}
+
 function process_frames() {
 
 	return new Promise((resolve, reject) => {
 
 		const img_files = fs.readdirSync(input_frames_dir)
+		
 		const requests_to_model = create_requests_to_model(model_name, img_files, model_args)
 
 		requests_to_model.forEach((req, i) =>  {
 
 			const [ filename, output_ext, request_obj ] = req
-			const processed_frame_path = path.join(processed_frames_dir, filename + '.' + output_ext)
+			const output_filename = filename + '.' + output_ext
+			const processed_frame_path = path.join(processed_frames_dir, output_filename)
 
-			// Check if file already exists
-		  if (fs.existsSync(processed_frame_path)) {
-		  	console.log('Frame already processed: ', processed_frame_path)
-		    return
-		  }
+			if (fs.existsSync(processed_frame_path) && is_processed(processed_frame_path)) {
+				console.log('Frame already processed: ', processed_frame_path)
+				return
+			}
 
 			console.log(`Processing frame ` + (i+1) + '/' + requests_to_model.length)
 
@@ -183,8 +207,6 @@ function process_frames() {
 
 			fs.writeFileSync(processed_frame_path, base64Data, 'base64')
 		})
-			// img_files.foeEach(f => )
-		  // fs.statSync(processed_frame_path)
 
   		resolve()
 	})     
@@ -227,8 +249,6 @@ function input_video_to_frames() {
 		})
 	}) 
 }
-
-
 
 // Create dirs if not exist
 [input_dir, input_frames_dir, processed_frames_dir, output_dir].forEach(dir => create_dir(dir))
