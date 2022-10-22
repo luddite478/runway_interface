@@ -161,6 +161,7 @@ function process_frames() {
 
 			// Check if file already exists
 		  if (fs.existsSync(processed_frame_path)) {
+		  	console.log('Frame already processed: ', processed_frame_path)
 		    return
 		  }
 
@@ -193,7 +194,11 @@ function input_video_to_frames() {
 
 	return new Promise((resolve, reject) => {
 		console.log('Video segmentation start')
-
+		if (fs.readdirSync(input_frames_dir).length > 0) {
+				console.log('Found frames in ', input_frames_dir, ' skip splitting')
+				resolve()
+			}
+        
 		const input_video = fs.readdirSync(input_dir)[0]
 
 		const cmd = 'ffmpeg'
