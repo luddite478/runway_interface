@@ -120,6 +120,10 @@ function assemble_video_from_frames(fps) {
 		  '-start_number', '1',
 		  '-r', fps, 
 		  '-i', path.join(processed_frames_dir, 'image-%07d.' + image_ext),
+		  '-c', 'libx264',
+		  '-preset', 'veryslow',
+		  // '-tune', 'grain',
+		  '-crf', '17',
 		  path.join(output_dir, 'output.mp4')
 		]
 
@@ -250,12 +254,52 @@ function input_video_to_frames() {
 	}) 
 }
 
+function convert_to_given_fps(fps) {
+
+	return new Promise((resolve, reject) => {
+		console.log(`Changing video fps to ${fps}`)
+
+		const input_video = fs.readdirSync(input_dir)[0]
+
+		const cmd = 'ffmpeg'
+		const args = [
+			'-hide_banner',
+			'-y',
+			'-i', path.join(__dirname, 'input', input_video),
+			'filter:v', `fps=${fps}`,
+			'-c', 'libx264',
+			'-crf,' '0',
+			path.join(input_frames_dir, 'input.mp4')
+		]
+
+		const proc = spawn(cmd, args)
+
+		proc.stderr.setEncoding("utf8")
+		proc.stderr.on('data', (data) => {
+			fs.appendFile(ffmpeg_stderr_path, data, (err) => {
+                if (err) {
+                    reject(err)
+                } 
+            })
+      	})
+
+		proc.on('close', () => {
+			// delete original video
+			fs.unlinkSync(path.join(__dirname, 'input', input_video))
+			console.log(`Changed video fps to ${fps}`)
+			resolve()      
+		})
+	}) 
+}
+
 // Create dirs if not exist
 [input_dir, input_frames_dir, processed_frames_dir, output_dir].forEach(dir => create_dir(dir))
 // Clear old log
 clear_file(ffmpeg_stderr_path)
 // Process file
-input_video_to_frames(fps)
+// convert_to_given_fps()
+convert_to_given_fps(fps)
+	.then(input_video_to_frames)
 	.then(process_frames)
 	.then(() => assemble_video_from_frames(fps))
 	.catch(err => console.log(err))
