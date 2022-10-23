@@ -100,6 +100,14 @@ function create_requests_to_model(model_name, img_files, model_args) {
 					render_factor: 35
 				}
 			]
+		} else if (model_name === 'sketch') {  // DeOldify model
+			return [
+				filename,
+				'png', // output ext
+				{
+					input: base64_img
+				}
+			]
 		}
 	
 	})
@@ -265,11 +273,11 @@ function convert_to_given_fps(fps) {
 		const args = [
 			'-hide_banner',
 			'-y',
-			'-i', path.join(__dirname, 'input', input_video),
-			'filter:v', `fps=${fps}`,
-			'-c', 'libx264',
-			'-crf,' '0',
-			path.join(input_frames_dir, 'input.mp4')
+			'-i', path.join(input_dir, input_video),
+			'-filter:v', `fps=${fps}`,
+			'-c:v', 'libx264',
+			'-crf', '0',
+			path.join(input_dir, 'input.mp4')
 		]
 
 		const proc = spawn(cmd, args)
@@ -286,7 +294,6 @@ function convert_to_given_fps(fps) {
 		proc.on('close', () => {
 			// delete original video
 			fs.unlinkSync(path.join(__dirname, 'input', input_video))
-			console.log(`Changed video fps to ${fps}`)
 			resolve()      
 		})
 	}) 
@@ -297,7 +304,6 @@ function convert_to_given_fps(fps) {
 // Clear old log
 clear_file(ffmpeg_stderr_path)
 // Process file
-// convert_to_given_fps()
 convert_to_given_fps(fps)
 	.then(input_video_to_frames)
 	.then(process_frames)
